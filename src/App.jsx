@@ -13,6 +13,7 @@ import ToolsSidebar from './components/ToolsSidebar';
 import FamilyBillsModal from './components/FamilyBillsModal';
 import GameOverModal from './components/GameOverModal';
 import LoveSurpriseModal from './components/LoveSurpriseModal'
+import { playSound } from './data/sound';
 
 export default function App() {
   const [currentTab, setCurrentTab] = useState('audit');
@@ -177,6 +178,9 @@ const [draggingId, setDraggingId] = useState(null);
     draggingItemRef.current = id;
     setDraggingId(id);
     
+
+    playSound('drag');
+
     const clientX = e.clientX ?? (e.touches ? e.touches[0].clientX : 0);
     const clientY = e.clientY ?? (e.touches ? e.touches[0].clientY : 0);
     
@@ -226,6 +230,10 @@ const [draggingId, setDraggingId] = useState(null);
     try {
       e.target.releasePointerCapture(e.pointerId);
     } catch (err) {}
+  }
+  if (draggingItemRef.current !== null) {
+    // 🔊 تشغيل صوت الاستقرار أو الإفلات
+    playSound('drop');
   }
   draggingItemRef.current = null;
   setDraggingId(null); // <-- تصفير الحالة هنا

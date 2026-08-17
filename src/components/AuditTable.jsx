@@ -80,7 +80,7 @@ export default function AuditTable({
 
               {/* ترويسة الخطاب الرسمي */}
               <div className="text-center border-b-2 border-slate-800 pb-4 mb-4">
-                <div className="text-[10px] font-bold text-slate-500 tracking-widest uppercase mb-1">الجمهورية الإدارية الكبرى - ديوان المحاسبة</div>
+                <div className="text-[10px] font-bold text-emerald-700 tracking-widest uppercase mb-1">الجمهورية الإدارية الكبرى - ديوان المحاسبة</div>
                 <h2 className="text-base sm:text-lg font-black text-slate-900 tracking-tight">{scenario.title}</h2>
                 <div className="text-[11px] font-mono text-slate-600 mt-1">المرجع: (CR-2026-{Math.floor(Math.random() * 9000 + 1000)})</div>
               </div>
