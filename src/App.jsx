@@ -77,11 +77,13 @@ const [draggingId, setDraggingId] = useState(null);
   const [highlightMode, setHighlightMode] = useState(false);
   const [activeFamilyBill, setActiveFamilyBill] = useState(null);
   const [gameOverReason, setGameOverReason] = useState(null);
-
+const [activeDraggedTool, setActiveDraggedTool] = useState(null);
+const [toolPos, setToolPos] = useState({ x: 0, y: 0 });
   const signAudioRef = useRef(null);
   const stampAudioRef = useRef(null);
   // مرجع لمنع تكرار تنفيذ دالة الختم مرتين في نفس اللحظة
   const isProcessingStampRef = useRef(false);
+const [sidebarOpen, setSidebarOpen] = useState(false);
 
   // ==========================================
   // ⏱️ تايمر الوقت المستمر في الخلفية (Game Timer)
@@ -110,11 +112,7 @@ const [draggingId, setDraggingId] = useState(null);
   }, [activeFamilyBill, gameOverReason]);
 
   useEffect(() => {
-    setPositions({});
-    setIsSigned(false);
-    setAppliedStamp(null);
-    setHighlightMode(false);
-
+    
     // التحقق من شروط الانهيار الوظيفي
     if (gameState.stress >= 100) {
       setGameOverReason("وصل معدل الضغط النفسي إلى 100%! أصابتكِ حالة انهيار عصبي مهني وتم إعفاؤكِ من مهام التدقيق.");
@@ -205,17 +203,23 @@ const [draggingId, setDraggingId] = useState(null);
     }
   };
   const handlePointerMove = (e) => {
-    if (!draggingItemRef.current) return;
-    const id = draggingItemRef.current;
-    
     const clientX = e.clientX ?? (e.touches ? e.touches[0].clientX : 0);
     const clientY = e.clientY ?? (e.touches ? e.touches[0].clientY : 0);
+
+    // إذا كان المستخدم يسحب أداة مرئية (قلم أو ختم)
+    if (activeDraggedTool) {
+      setToolPos({ x: clientX, y: clientY });
+      return;
+    }
+
+    // إذا كان المستخدم يسحب ورقة مستند عادية
+    if (!draggingItemRef.current) return;
+    const id = draggingItemRef.current;
     
     const parentContainer = document.querySelector('main');
     if (!parentContainer) return;
     const parentRect = parentContainer.getBoundingClientRect();
 
-    // تحديث الموقع بسلاسة فائقة مع حركة الإصبع أو الماوس
     setPositions(prev => ({
       ...prev,
       [id]: { 
@@ -225,19 +229,53 @@ const [draggingId, setDraggingId] = useState(null);
     }));
   };
 
-  const handlePointerUp = (e) => {
-  if (draggingItemRef.current && e.target.releasePointerCapture) {
-    try {
-      e.target.releasePointerCapture(e.pointerId);
-    } catch (err) {}
-  }
-  if (draggingItemRef.current !== null) {
-    // 🔊 تشغيل صوت الاستقرار أو الإفلات
-    playSound('drop');
-  }
-  draggingItemRef.current = null;
-  setDraggingId(null); // <-- تصفير الحالة هنا
-};
+const handlePointerUp = (e) => {
+    if (activeDraggedTool) {
+      setActiveDraggedTool(null);
+    }
+
+    draggingItemRef.current = null;
+    setDraggingId(null);
+  };
+
+
+const handleToolPointerDown = (e, toolType) => {
+    e.stopPropagation();
+    setActiveDraggedTool(toolType);
+    setDraggingId(toolType);
+    
+    const clientX = e.clientX ?? (e.touches ? e.touches[0].clientX : 0);
+    const clientY = e.clientY ?? (e.touches ? e.touches[0].clientY : 0);
+    setToolPos({ x: clientX, y: clientY });
+  };
+
+  // دالة تُنفذ عند إفلات أي أداة فوق ملف القرار الرئيسي
+ const handleMainFolderPointerUp = () => {
+    if (!activeDraggedTool) return;
+    
+    // إذا ظهرت النتيجة سابقاً، امنع أي تعديل إضافي
+    if (feedback) {
+      setActiveDraggedTool(null);
+      return;
+    }
+
+    if (activeDraggedTool === 'pen') {
+      // استدعاء دالة التوقيع مع الحفاظ على حالتها
+      if (!isSigned) {
+        signDocument();
+       
+      }
+    } else if (activeDraggedTool === 'approve' || activeDraggedTool === 'reject') {
+      // تطبيق الختم المختار وثباته فوق المعاملة
+      if (!appliedStamp) {
+        applyStampDecision(activeDraggedTool);
+        
+      
+      }
+    }
+
+    setActiveDraggedTool(null);
+  };
 
   const signDocument = () => {
     if (!isSigned) {
@@ -286,6 +324,10 @@ const [draggingId, setDraggingId] = useState(null);
       if (choice) {
         const stressDelta = upgrades.ergonomicChair ? Math.round(choice.stressChange * 0.7) : choice.stressChange;
 
+        
+
+        setFeedback(choice.resultText);
+
         setGameState(prev => {
           const updated = {
             ...prev,
@@ -296,9 +338,6 @@ const [draggingId, setDraggingId] = useState(null);
           localStorage.setItem('sidra_gameState', JSON.stringify(updated));
           return updated;
         });
-
-        setFeedback(choice.resultText);
-
         if (choice.ledgerEntry) {
           setLedgerEntries(prev => {
             const lastEntry = prev[prev.length - 1];
@@ -345,6 +384,10 @@ const [draggingId, setDraggingId] = useState(null);
 
   // زر الانتقال للقضية التالية ضمن نفس اليوم وساعات العمل الحالية
   const nextScenario = () => {
+    setPositions({});
+    setIsSigned(false);
+    setAppliedStamp(null);
+    setHighlightMode(false);
     setFeedback(null);
     setCurrentScenarioIndex(prevIndex => {
       const nextIndex = prevIndex + 1;
@@ -423,7 +466,7 @@ const [draggingId, setDraggingId] = useState(null);
       <audio ref={signAudioRef} src="/pen-scratch.mp3" preload="auto" />
       <audio ref={stampAudioRef} src="/stamp-thud.mp3" preload="auto" />
 
-      <Header gameState={gameState} />
+      <Header gameState={gameState} onToggleSidebar={() => setSidebarOpen(!sidebarOpen)}/>
 
       {gameOverReason && (
         <div className="fixed inset-0 z-300 flex items-center justify-center bg-black/70">
@@ -441,8 +484,24 @@ const [draggingId, setDraggingId] = useState(null);
         </div>
       )}
 
-      <div className="flex flex-1 overflow-hidden">
-        <Sidebar currentTab={currentTab} setCurrentTab={setCurrentTab} />
+      <div className="flex flex-1 overflow-hidden relative">
+         {sidebarOpen && (
+      <div 
+        onClick={() => setSidebarOpen(false)}
+        className="fixed inset-0 bg-black/50 z-30 md:hidden backdrop-blur-xs transition-opacity"
+      />
+    )}
+
+    {/* القائمة الجانبية أصبحت تنزلق وتختفي/تظهر حسب رغبة المستخدم عبر زر ☰ */}
+    <div className={`absolute right-0 top-0 bottom-0 z-40 transform ${sidebarOpen ? 'translate-x-0' : 'translate-x-full'} transition-transform duration-300 ease-in-out flex shrink-0 shadow-2xl`}>
+          <Sidebar 
+            currentTab={currentTab} 
+            setCurrentTab={setCurrentTab} 
+            closeMobileMenu={() => {
+              if (window.innerWidth < 768) setSidebarOpen(false);
+            }} 
+          />
+        </div>
 
         <main 
           onMouseMove={handlePointerMove}
@@ -473,6 +532,7 @@ const [draggingId, setDraggingId] = useState(null);
               highlightMode={highlightMode}
               setHighlightMode={setHighlightMode}
               checkDiscrepancy={checkDiscrepancy}
+              handleMainFolderPointerUp={handleMainFolderPointerUp}
             />
           )}
 
@@ -487,8 +547,20 @@ const [draggingId, setDraggingId] = useState(null);
             applyStampDecision={applyStampDecision}
             isSigned={isSigned}
             handleDragStartTool={handleDragStartTool}
+            handleToolPointerDown={handleToolPointerDown}
           />
+          
         )}
+        {activeDraggedTool && (
+        <div 
+          style={{ left: toolPos.x - 25, top: toolPos.y - 25 }}
+          className="fixed z-50 pointer-events-none px-3 py-2 bg-slate-800 border-2 border-amber-400 text-white rounded-lg shadow-2xl flex items-center gap-2 text-xs font-bold animate-pulse"
+        >
+          {activeDraggedTool === 'pen' && <span>🖊️ جاري سحب القلم...</span>}
+          {activeDraggedTool === 'approve' && <span>🟢 جاري سحب ختم الاعتماد...</span>}
+          {activeDraggedTool === 'reject' && <span>🔴 جاري سحب ختم الرفض...</span>}
+        </div>
+      )}
         {activeLoveMessage && (
   <div className="fixed inset-0 z-300 flex items-center justify-center bg-black/70">
           <LoveSurpriseModal 

@@ -1,16 +1,15 @@
-import React from 'react';
+import React,{ useMemo } from 'react';
 
 export default function AuditTable({
   scenario,
   positions,
   zIndices,
   handleMouseDown,
-  handleDragOver,
+    handleDragOver,
   handleDropOnMainFolder,
   handleMouseMove,
   handleMouseUp,
   draggingId,
-  signDocument,
   isSigned,
   appliedStamp,
   feedback,
@@ -18,9 +17,12 @@ export default function AuditTable({
   upgrades,
   highlightMode,
   setHighlightMode,
-  checkDiscrepancy
+  checkDiscrepancy,
+  handleMainFolderPointerUp
 }) {
-    
+    const randomRef = useMemo(() => {
+  return Math.floor(Math.random() * 9000 + 1000);
+}, [scenario.id]); // يتغير فقط عند الانتقال لسيناريو جديد
   return (
     <div className="w-full max-w-5xl flex flex-col items-center relative min-h-[600px]">
       
@@ -40,7 +42,7 @@ export default function AuditTable({
 
       {/* شريط الأدوات المساعد */}
       <div className="w-full text-xs text-slate-300 mb-4 bg-[#161b22] p-2.5 rounded-lg border border-slate-800 flex justify-between items-center shadow-md">
-        <span>💡 <strong>إرشاد سيدرا:</strong> قارني الأوراق، أو فعّلي أداة المطابقة الدقيقة لاكتشاف التزوير.</span>
+        <span>💡 <strong>إرشاد سيدرا:</strong> اسحبي القلم أو الختم المرئي من القائمة الجانبية وأسقطيه فوق المعاملة.</span>
         <button 
           onClick={() => setHighlightMode(!highlightMode)}
           className={`px-3 py-1 rounded text-xs font-bold transition cursor-pointer ${highlightMode ? 'bg-red-600 text-white animate-pulse' : 'bg-slate-700 text-slate-300 hover:bg-slate-600'}`}
@@ -59,7 +61,10 @@ export default function AuditTable({
             <div
               onPointerDown={(e) => handleMouseDown(e, 'mainFolder')}
               onPointerMove={handleMouseMove}
-              onPointerUp={handleMouseUp}
+              onPointerUp={(e) => {
+                handleMouseUp(e);
+                handleMainFolderPointerUp();
+              }}
               onDragOver={handleDragOver}
               onDrop={handleDropOnMainFolder}
               style={{ 
@@ -82,10 +87,10 @@ export default function AuditTable({
               <div className="text-center border-b-2 border-slate-800 pb-4 mb-4">
                 <div className="text-[10px] font-bold text-emerald-700 tracking-widest uppercase mb-1">الجمهورية الإدارية الكبرى - ديوان المحاسبة</div>
                 <h2 className="text-base sm:text-lg font-black text-slate-900 tracking-tight">{scenario.title}</h2>
-                <div className="text-[11px] font-mono text-slate-600 mt-1">المرجع: (CR-2026-{Math.floor(Math.random() * 9000 + 1000)})</div>
+                <div className="text-[11px] font-mono text-slate-600 mt-1">المرجع: (CR-2026-{randomRef})</div>
               </div>
 
-              {/* نص الخطاب الرسمي الموجه للمدقق */}
+              {/* نص الخطاب الرسمي */}
               <div className="text-xs sm:text-sm font-serif text-slate-800 space-y-3 leading-relaxed mb-6 bg-slate-50/70 p-4 rounded border border-slate-200">
                 <p className="font-bold text-slate-900">إلى الزميلة المدققة / سيدرا المحترمة،</p>
                 <p className="text-slate-700 text-justify">
@@ -98,34 +103,38 @@ export default function AuditTable({
               </div>
 
               {/* قسم التوقيع والختم الرسمي الواقعي */}
-              <div className="flex justify-between items-end pt-4 border-t-2 border-slate-300 font-sans">
+              <div className="flex justify-between items-end pt-4 border-t-2 border-slate-300 font-sans relative">
+                {/* مكان التوقيع */}
                 <div className="text-xs text-slate-700">
                   <div className="font-bold mb-1.5 text-slate-800">توقيع المدقق المعتمد:</div>
-                  <div 
-                    onClick={(e) => { e.stopPropagation(); signDocument(); }}
-                    className={`h-10 w-32 sm:w-36 border-2 border-dashed rounded flex items-center justify-center cursor-pointer transition ${isSigned ? 'border-pink-600 bg-pink-50/90 shadow-sm' : 'border-slate-400 hover:border-slate-600 bg-white'}`}
-                  >
+                  <div className={`h-10 w-32 sm:w-36 border-2 border-dashed rounded flex items-center justify-center transition ${isSigned ? 'border-pink-600 bg-pink-50/90 shadow-sm' : 'border-slate-400 bg-white'}`}>
                     {isSigned ? (
                       <span className="font-['Caveat',cursive] text-pink-900 text-base font-bold rotate-[-2deg]">
                         سيدرا المحاسبة ✔
                       </span>
                     ) : (
-                      <span className="text-slate-500 text-xs font-semibold">🖊️ وقّعي هنا</span>
+                      <span className="text-slate-400 text-[11px] font-semibold">🖊️ اسحبي القلم هنا</span>
                     )}
                   </div>
                 </div>
 
-                <div className="relative h-18 w-22 border-2 border-dashed border-slate-400 rounded-md flex items-center justify-center bg-white shadow-inner">
+                {/* مكان الختم المادي البارز */}
+                <div className="relative h-18 w-26 border-2 border-dashed border-slate-400 rounded-md flex items-center justify-center bg-white shadow-inner">
                   <span className="absolute text-[9px] text-slate-400 top-1 font-bold">الختم الرسمي</span>
                   {appliedStamp === 'approve' && (
-                    <div className="absolute border-4 border-emerald-600 text-emerald-600 font-black p-1.5 rounded rotate-[-8deg] tracking-widest text-center shadow-md bg-emerald-50 text-[10px] font-sans">
-                      معتمد ✅
+                    <div className="absolute inset-2 border-4 border-emerald-600 text-emerald-700 font-black flex flex-col items-center justify-center rounded rotate-[-8deg] tracking-widest shadow-lg bg-emerald-50/90 text-xs font-sans">
+                      <span>معتمد رسمي</span>
+                      <span className="text-[8px] font-mono">2026/08</span>
                     </div>
                   )}
                   {appliedStamp === 'reject' && (
-                    <div className="absolute border-4 border-red-600 text-red-600 font-black p-1.5 rounded rotate-[8deg] tracking-widest text-center shadow-md bg-red-50 text-[10px] font-sans">
-                      مرفوض ❌
+                    <div className="absolute inset-2 border-4 border-red-600 text-red-700 font-black flex flex-col items-center justify-center rounded rotate-[8deg] tracking-widest shadow-lg bg-red-50/90 text-xs font-sans">
+                      <span>مرفوض نهائياً</span>
+                      <span className="text-[8px] font-mono">ديوان المحاسبة</span>
                     </div>
+                  )}
+                  {!appliedStamp && (
+                    <span className="text-[10px] text-slate-400">اسحبي الختم</span>
                   )}
                 </div>
               </div>
@@ -154,7 +163,7 @@ export default function AuditTable({
           );
         })()}
 
-        {/* الأوراق المستاندة مع فصل حركة السحب عن النقر للتناقض */}
+        {/* الأوراق المستاندة */}
         <div className="flex flex-wrap justify-center gap-6 w-full mt-4">
           {scenario.documents.map((doc) => {
             const pos = positions[doc.id];
@@ -185,7 +194,6 @@ export default function AuditTable({
                   ${highlightMode ? 'border-red-500 ring-4 ring-red-300/60 bg-red-50/40 cursor-pointer' : 'cursor-grab active:cursor-grabbing hover:shadow-[0_12px_25px_rgba(0,0,0,0.25)]'} 
                   font-serif relative overflow-hidden`}
               >
-                {/* ترويسة الورقة الرسمية */}
                 <div className="border-b-2 border-slate-800 pb-2 mb-3 flex justify-between items-center bg-slate-100/95 -mx-5 -mt-5 p-3.5 rounded-t-sm">
                   <div className="flex items-center gap-2">
                     <span className="text-sm">🏛️</span>
@@ -199,7 +207,6 @@ export default function AuditTable({
                   </span>
                 </div>
 
-                {/* محتوى الفاتورة أو المستند */}
                 {doc.type === 'invoice' && (
                   <div className="text-xs font-sans space-y-2 text-slate-800 pointer-events-none">
                     <div className="flex justify-between border-b border-dashed border-slate-200 pb-1">
@@ -257,7 +264,6 @@ export default function AuditTable({
                     </div>
                   </div>
                 )}
-
                 {/* ختم خلفي خفيف يضفي طابعاً حكومياً أصلياً */}
                 <div className="absolute bottom-2 left-2 opacity-10 pointer-events-none font-black text-xl rotate-[-15deg] text-slate-900 border-2 border-slate-900 px-1.5 py-0.5 rounded">
                   مستند معتمد
