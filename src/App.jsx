@@ -51,6 +51,7 @@ const [achievements, setAchievements] = useState(() => {
     return saved ? JSON.parse(saved) : 0;
   });
 const [activeLoveMessage, setActiveLoveMessage] = useState(null);
+const [draggingId, setDraggingId] = useState(null);
   // توليد السيناريو الحالي ديناميكياً عبر المحرك
   const scenario = generateCityScenario(currentScenarioIndex);
 
@@ -131,33 +132,104 @@ const [activeLoveMessage, setActiveLoveMessage] = useState(null);
     zIndicesSet(prev => ({ ...prev, [id]: maxZRef.current }));
   };
 
-  const handleMouseDown = (e, id) => {
+  // const handleMouseDown = (e, id) => {
+  //   if (highlightMode) return;
+  //   e.stopPropagation();
+  //   bringToFront(id);
+  //   draggingItemRef.current = id;
+  //   const element = e.currentTarget;
+  //   const rect = element.getBoundingClientRect();
+  //   const parentRect = element.parentElement.getBoundingClientRect();
+    
+  //   setPositions(prev => ({
+  //     ...prev,
+  //     [id]: { x: rect.left - parentRect.left, y: rect.top - parentRect.top }
+  //   }));
+  //   dragOffsetRef.current = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+  // };
+
+  // const handleMouseMove = (e) => {
+  //   if (!draggingItemRef.current) return;
+  //   const id = draggingItemRef.current;
+  //   const parentRect = e.currentTarget.getBoundingClientRect();
+  //   setPositions(prev => ({
+  //     ...prev,
+  //     [id]: { x: e.clientX - parentRect.left - dragOffsetRef.current.x, y: e.clientY - parentRect.top - dragOffsetRef.current.y }
+  //   }));
+  // };
+
+  // const handleMouseUp = () => { draggingItemRef.current = null; };
+
+ const handlePointerDown = (e, id) => {
     if (highlightMode) return;
+
+    // 🛑 منع السحب نهائياً إذا كانت فواتير العائلة أو نافذة الحب أو نهاية اللعبة ظاهرة
+    if (activeFamilyBill || gameOverReason || activeLoveMessage) {
+      return;
+    }
+
+    if (e.target.tagName === 'BUTTON' || e.target.closest('button')) {
+      return;
+    }
+
     e.stopPropagation();
     bringToFront(id);
     draggingItemRef.current = id;
-    const element = e.currentTarget;
-    const rect = element.getBoundingClientRect();
-    const parentRect = element.parentElement.getBoundingClientRect();
+    setDraggingId(id);
     
-    setPositions(prev => ({
-      ...prev,
-      [id]: { x: rect.left - parentRect.left, y: rect.top - parentRect.top }
-    }));
-    dragOffsetRef.current = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+    const clientX = e.clientX ?? (e.touches ? e.touches[0].clientX : 0);
+    const clientY = e.clientY ?? (e.touches ? e.touches[0].clientY : 0);
+    
+    const element = e.currentTarget;
+    const parentContainer = document.querySelector('main');
+    if (!parentContainer) return;
+    
+    const rect = element.getBoundingClientRect();
+    const parentRect = parentContainer.getBoundingClientRect();
+    
+    if (!positions[id]) {
+      setPositions(prev => ({
+        ...prev,
+        [id]: { x: rect.left - parentRect.left, y: rect.top - parentRect.top }
+      }));
+    }
+    
+    dragOffsetRef.current = { x: clientX - rect.left, y: clientY - rect.top };
+    
+    if (element.setPointerCapture) {
+      element.setPointerCapture(e.pointerId);
+    }
   };
-
-  const handleMouseMove = (e) => {
+  const handlePointerMove = (e) => {
     if (!draggingItemRef.current) return;
     const id = draggingItemRef.current;
-    const parentRect = e.currentTarget.getBoundingClientRect();
+    
+    const clientX = e.clientX ?? (e.touches ? e.touches[0].clientX : 0);
+    const clientY = e.clientY ?? (e.touches ? e.touches[0].clientY : 0);
+    
+    const parentContainer = document.querySelector('main');
+    if (!parentContainer) return;
+    const parentRect = parentContainer.getBoundingClientRect();
+
+    // تحديث الموقع بسلاسة فائقة مع حركة الإصبع أو الماوس
     setPositions(prev => ({
       ...prev,
-      [id]: { x: e.clientX - parentRect.left - dragOffsetRef.current.x, y: e.clientY - parentRect.top - dragOffsetRef.current.y }
+      [id]: { 
+        x: clientX - parentRect.left - dragOffsetRef.current.x, 
+        y: clientY - parentRect.top - dragOffsetRef.current.y 
+      }
     }));
   };
 
-  const handleMouseUp = () => { draggingItemRef.current = null; };
+  const handlePointerUp = (e) => {
+  if (draggingItemRef.current && e.target.releasePointerCapture) {
+    try {
+      e.target.releasePointerCapture(e.pointerId);
+    } catch (err) {}
+  }
+  draggingItemRef.current = null;
+  setDraggingId(null); // <-- تصفير الحالة هنا
+};
 
   const signDocument = () => {
     if (!isSigned) {
@@ -346,23 +418,27 @@ const [activeLoveMessage, setActiveLoveMessage] = useState(null);
       <Header gameState={gameState} />
 
       {gameOverReason && (
-        <GameOverModal reason={gameOverReason} resetGame={resetGame} />
+        <div className="fixed inset-0 z-300 flex items-center justify-center bg-black/70">
+          <GameOverModal reason={gameOverReason} resetGame={resetGame} />
+        </div>
       )}
 
       {activeFamilyBill && (
-        <FamilyBillsModal 
-          bill={activeFamilyBill}
-          payBill={handlePayFamilyBill}
-          skipBill={handleSkipFamilyBill}
-        />
+        <div className="fixed inset-0 z-300 flex items-center justify-center bg-black/70">
+          <FamilyBillsModal 
+            bill={activeFamilyBill}
+            payBill={handlePayFamilyBill}
+            skipBill={handleSkipFamilyBill}
+          />
+        </div>
       )}
 
       <div className="flex flex-1 overflow-hidden">
         <Sidebar currentTab={currentTab} setCurrentTab={setCurrentTab} />
 
         <main 
-          onMouseMove={handleMouseMove}
-          onMouseUp={handleMouseUp}
+          onMouseMove={handlePointerMove}
+          onMouseUp={handlePointerUp}
           className="flex-1 relative overflow-auto bg-[#21262d] flex flex-col items-center justify-start p-6"
         >
           {currentTab === 'audit' && (
@@ -370,13 +446,16 @@ const [activeLoveMessage, setActiveLoveMessage] = useState(null);
               scenario={scenario}
               positions={positions}
               zIndices={zIndices}
-              handleMouseDown={handleMouseDown}
+              handleMouseDown={handlePointerDown}
               handleDragOver={(e) => e.preventDefault()}
               handleDropOnMainFolder={(e) => {
                 e.preventDefault();
                 const toolType = e.dataTransfer.getData('text/plain');
                 if (toolType === 'approve' || toolType === 'reject') applyStampDecision(toolType);
               }}
+              handleMouseMove={handlePointerMove}
+              handleMouseUp={handlePointerUp}
+              draggingId={draggingId}
               signDocument={signDocument}
               isSigned={isSigned}
               appliedStamp={appliedStamp}
@@ -403,10 +482,12 @@ const [activeLoveMessage, setActiveLoveMessage] = useState(null);
           />
         )}
         {activeLoveMessage && (
-  <LoveSurpriseModal 
-    message={activeLoveMessage} 
-    onClose={() => setActiveLoveMessage(null)} 
-  />
+  <div className="fixed inset-0 z-300 flex items-center justify-center bg-black/70">
+          <LoveSurpriseModal 
+            message={activeLoveMessage} 
+            onClose={() => setActiveLoveMessage(null)} 
+          />
+        </div>
 )}
       </div>
     </div>

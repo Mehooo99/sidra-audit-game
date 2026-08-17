@@ -57,15 +57,16 @@ body {
 }
 
 #root {
-  width: 1126px;
-  max-width: 100%;
+  width: 100%;             /* بدلاً من 1126px الثابتة */
+  max-width: 100vw;        /* لتملأ عرض الشاشة بالكامل */
+  min-height: 100svh;
   margin: 0 auto;
   text-align: center;
-  border-inline: 1px solid var(--border);
-  min-height: 100svh;
+  border-inline: none;     /* إزالة الحدود الجانبية المزعجة على الموبايل */
   display: flex;
   flex-direction: column;
   box-sizing: border-box;
+  overflow-x: hidden;      /* لمنع أي تمرير أفقي مزعج */
 }
 
 h1,
@@ -110,4 +111,20 @@ code {
   line-height: 135%;
   padding: 4px 8px;
   background: var(--code-bg);
+}
+@media (max-height: 600px) and (orientation: landscape) {
+  body {
+    font-size: 14px; /* تصغير حجم الخط قليلاً ليناسب الارتفاع القصير للموبايل بالعرض */
+  }
+  
+  /* تقليص الهوامش الكبيرة لتناسب ارتفاع الشاشة الأفقي */
+  h1 {
+    font-size: 24px !important;
+    margin: 10px 0 !important;
+  }
+  
+  /* جعل الأزرار والعناصر المرنة تتوزع بشكل مريح أفقياً */
+  .game-container, div {
+    box-sizing: border-box;
+  }
 }
